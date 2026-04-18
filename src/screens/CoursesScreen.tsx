@@ -6,8 +6,9 @@ import { cn } from '../lib/utils';
 import { Link } from 'react-router-dom';
 
 export default function CoursesScreen() {
-  const { library } = useAppStore();
+  const { library, courses } = useAppStore();
   const [activeFilter, setActiveFilter] = React.useState<CourseCategory | 'All'>('All');
+  const [searchQuery, setSearchQuery] = React.useState('');
 
   const filters = ['All', ...Object.values(CourseCategory)];
 
@@ -23,29 +24,36 @@ export default function CoursesScreen() {
         category: CourseCategory.AI_GENERATED,
         gradient: 'from-purple-600 to-cyan-500',
         progress: 0,
-        lessons: material.sections.map((sec, i) => ({
-          id: `sec-${i}`,
-          title: sec.title,
-          steps: [] // We don't need steps here, we link to study-document
-        }))
+        lessons: [{
+          id: item.id,
+          title: "Estudio Guiado por IA",
+          steps: []
+        }]
       };
     });
 
-  const filteredCourses = activeFilter === 'All' 
-    ? dynamicCourses 
-    : dynamicCourses.filter(c => c.category === activeFilter);
+  const allCourses = [...courses, ...dynamicCourses];
+
+  const filteredCourses = allCourses.filter(c => {
+    const matchesFilter = activeFilter === 'All' || c.category === activeFilter;
+    const searchLower = searchQuery.toLowerCase();
+    const matchesSearch = c.title.toLowerCase().includes(searchLower) || c.description.toLowerCase().includes(searchLower);
+    return matchesFilter && matchesSearch;
+  });
 
   return (
     <div className="p-6 md:p-8 space-y-6 md:space-y-8">
       <div className="space-y-4">
-        <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight">Cursos</h1>
+        <h1 className="text-3xl md:text-4xl font-black text-white uppercase tracking-tight">Cursos y Módulos</h1>
         
         {/* Search Bar */}
         <div className="relative">
           <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-500" size={20} />
           <input 
             type="text" 
-            placeholder="Buscar cursos..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar por título o descripción..."
             className="w-full bg-[#252538] border border-slate-700 rounded-2xl py-3.5 pl-12 pr-4 focus:ring-0 focus:border-purple-500 transition-all shadow-sm text-white placeholder:text-slate-500"
           />
         </div>
@@ -69,7 +77,7 @@ export default function CoursesScreen() {
         </div>
       </div>
 
-      {dynamicCourses.length === 0 && (
+      {allCourses.length === 0 && (
         <div className="text-center py-20">
           <div className="w-24 h-24 bg-[#252538] rounded-full flex items-center justify-center mx-auto mb-6">
             <BookOpen size={40} className="text-slate-500" />
@@ -94,7 +102,7 @@ export default function CoursesScreen() {
             {/* Course Header */}
             <div className="flex items-center justify-between border-b border-slate-800 pb-4">
               <div>
-                <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Sección {courseIndex + 1}</h2>
+                <h2 className="text-sm font-bold text-slate-500 uppercase tracking-widest">Módulo {courseIndex + 1}</h2>
                 <h3 className="text-2xl font-black text-white mt-1">{course.title}</h3>
                 <p className="text-slate-400 mt-1 text-sm">{course.description}</p>
               </div>
@@ -102,14 +110,14 @@ export default function CoursesScreen() {
                 <svg className="absolute inset-0 w-full h-full -rotate-90" viewBox="0 0 36 36">
                   <path
                     className="text-purple-600"
-                    strokeDasharray={`${course.progress}, 100`}
+                    strokeDasharray={`${course.progress || 0}, 100`}
                     d="M18 2.0845 a 15.9155 15.9155 0 0 1 0 31.831 a 15.9155 15.9155 0 0 1 0 -31.831"
                     fill="none"
                     stroke="currentColor"
                     strokeWidth="4"
                   />
                 </svg>
-                <span className="text-sm font-bold text-slate-300">{Math.round(course.progress)}%</span>
+                <span className="text-sm font-bold text-slate-300">{Math.round(course.progress || 0)}%</span>
               </div>
             </div>
 
@@ -119,16 +127,16 @@ export default function CoursesScreen() {
                 return (
                   <Link
                     key={lesson.id}
-                    to={`/study-document/${course.id}`}
+                    to={course.category === CourseCategory.AI_GENERATED ? `/study-document/${course.id}` : `/lesson/${course.id}/${lesson.id}`}
                     className="flex items-center justify-between p-4 rounded-2xl border-2 transition-all bg-[#252538] border-slate-700 hover:border-purple-500 cursor-pointer"
                   >
                     <div className="flex items-center gap-4">
-                      <div className="w-8 h-8 rounded-full bg-[#1e1e2f] flex items-center justify-center text-xs font-bold text-slate-400">
+                      <div className="w-8 h-8 rounded-full bg-[#1e1e2f] flex items-center justify-center text-xs font-bold text-slate-400 shrink-0">
                         {String(lessonIndex + 1).padStart(2, '0')}
                       </div>
-                      <span className="font-bold text-slate-200">{lesson.title}</span>
+                      <span className="font-bold text-slate-200 line-clamp-1">{lesson.title}</span>
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-3 shrink-0">
                       <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-purple-500/20 text-purple-400 font-bold text-xs uppercase tracking-wider">
                         <BookOpen size={14} /> Aprender
                       </div>

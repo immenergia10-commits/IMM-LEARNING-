@@ -23,14 +23,40 @@ import {
 type Tab = 'aprender' | 'practica' | 'construir';
 
 export default function LearningPathScreen() {
-  const { library, stats } = useAppStore();
+  const { library, stats, courses, completedLessons = [] } = useAppStore();
   const [activeTab, setActiveTab] = React.useState<Tab>('aprender');
 
   const readyItems = library.filter(item => item.status === 'ready' && item.studyMaterial);
 
+  let isPreviousCompleted = true; // Start node is always unlocked
+
+  const internalPathItems = courses.map((course, index) => {
+    // Check if previous is completed. For the first item, it's true because start node is pseudo-completed
+    const isLocked = !isPreviousCompleted;
+    
+    // Evaluate if *this* internal course is completed
+    // It's completed if all its lessons are in completedLessons
+    const allLessonsCompleted = course.lessons.every(l => completedLessons.includes(`${course.id}-${l.id}`));
+    isPreviousCompleted = allLessonsCompleted;
+
+    return {
+      id: course.id,
+      type: 'course',
+      label: course.title,
+      courseId: course.id,
+      color: 'from-blue-500 to-cyan-400',
+      theme: 'energy',
+      locked: isLocked, // true sequential locking
+      lessons: course.lessons
+    };
+  });
+
   const dynamicPathItems = readyItems.map((item, index) => {
+    const isLocked = !isPreviousCompleted;
+    const documentIsCompleted = completedLessons.includes(`doc-${item.id}`);
+    isPreviousCompleted = documentIsCompleted;
+
     const colors = [
-      'from-blue-500 to-cyan-400',
       'from-green-500 to-emerald-400',
       'from-purple-500 to-pink-500',
       'from-red-500 to-orange-400',
@@ -40,19 +66,20 @@ export default function LearningPathScreen() {
     
     return {
       id: item.id,
-      type: 'lesson',
+      type: 'document',
       label: item.studyMaterial?.title || item.name,
       documentId: item.id,
       color,
-      theme: 'energy', // Default theme, could be inferred from content
-      locked: false
+      theme: 'ducati',
+      locked: isLocked
     };
   });
 
   const pathItems: any[] = [
     { id: 'start', type: 'start', label: 'Bienvenida IMM', icon: Star, color: 'from-yellow-400 to-orange-500', locked: false, isStart: true },
+    ...internalPathItems,
     ...dynamicPathItems,
-    { id: 'end', type: 'end', label: 'Experto IMM', icon: Trophy, color: 'from-yellow-500 to-amber-600', locked: dynamicPathItems.length === 0 },
+    { id: 'end', type: 'end', label: 'Experto IMM', icon: Trophy, color: 'from-yellow-500 to-amber-600', locked: !isPreviousCompleted },
   ];
 
   return (
@@ -157,7 +184,7 @@ export default function LearningPathScreen() {
                 </div>
 
                 <div className="space-y-24 relative w-full max-w-sm">
-                  {dynamicPathItems.length === 0 && (
+                  {dynamicPathItems.length === 0 && internalPathItems.length === 0 && (
                     <div className="absolute top-32 left-1/2 -translate-x-1/2 w-64 text-center z-10">
                       <div className="bg-[#252538] p-4 rounded-2xl border border-purple-500/30 shadow-2xl shadow-purple-500/10 mb-4 animate-bounce">
                         <p className="text-sm font-bold text-white mb-2">¡Tu ruta está vacía!</p>
@@ -201,10 +228,10 @@ export default function LearningPathScreen() {
                             )}></div>
 
                             <Link
-                              to={item.locked ? '#' : (item.documentId ? `/study-document/${item.documentId}` : item.isStart ? '/library' : '/')}
+                              to={item.locked ? '#' : (item.documentId ? `/study-document/${item.documentId}` : item.courseId ? `/lesson/${item.courseId}/${item.lessons?.[0]?.id}` : item.isStart ? '/library' : '/')}
                               className={cn(
                                 "relative w-24 h-24 rounded-[2.5rem] flex items-center justify-center shadow-2xl border-4 transition-all active:scale-90 overflow-hidden bg-gradient-to-br",
-                                item.locked || (!item.documentId && !item.isStart && item.type !== 'end')
+                                item.locked || (!item.documentId && !item.courseId && !item.isStart && item.type !== 'end')
                                   ? "from-slate-800 to-slate-900 border-slate-700 text-slate-600 cursor-not-allowed" 
                                   : cn(item.color, "border-white/30 text-white hover:scale-110 hover:rotate-3")
                               )}
@@ -361,7 +388,7 @@ export default function LearningPathScreen() {
             </div>
             <div className="flex items-center gap-2 text-yellow-400">
               <Zap size={18} fill="currentColor" />
-              <h4 className="text-xs font-black uppercase tracking-widest">Flash Tip IMM</h4>
+              <h4 className="text-xs font-black uppercase tracking-widest">Quick Tip IMM</h4>
             </div>
             <p className="text-sm text-slate-300 font-bold leading-relaxed">
               "En agricultura, un motor bien mantenido consume hasta un 15% menos combustible. ¡Revisa los filtros cada 50 horas!"

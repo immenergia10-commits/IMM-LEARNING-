@@ -15,7 +15,8 @@ export default function LeaderboardScreen() {
         name: user.name,
         email: user.email,
         xp: stats.xp,
-        level: Math.floor(stats.xp / 2000) + 1,
+        level: stats.level,
+        rank: stats.rank,
         completedCourses: stats.lessonsCompleted
       });
     } else {
@@ -24,7 +25,8 @@ export default function LeaderboardScreen() {
       allUsers[idx] = {
         ...allUsers[idx],
         xp: stats.xp,
-        level: Math.floor(stats.xp / 2000) + 1,
+        level: stats.level,
+        rank: stats.rank,
         completedCourses: stats.lessonsCompleted
       };
     }
@@ -66,7 +68,7 @@ export default function LeaderboardScreen() {
               <h3 className={cn("font-bold text-lg", student.email === user?.email ? "text-purple-400" : "text-white")}>
                 {student.name} {student.email === user?.email && <span className="text-xs bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded-full ml-2 uppercase tracking-wider">Tú</span>}
               </h3>
-              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Nivel {student.level}</p>
+              <p className="text-xs text-slate-400 font-medium uppercase tracking-wider mt-0.5">Nivel {student.level} • {student.rank}</p>
             </div>
             
             <div className="text-right">

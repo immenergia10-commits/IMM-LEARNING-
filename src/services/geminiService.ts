@@ -1,63 +1,67 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, ThinkingLevel } from "@google/genai";
 
 const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY || '' });
 
 export const processDocument = async (file: File) => {
-  const prompt = `Eres un tutor experto en energía de IMM. Convierte el siguiente documento en una experiencia de estudio metódica y completa.
+  const prompt = `Eres un tutor experto en energía de IMM. Convierte el siguiente documento en una experiencia de estudio gamificada.
   
   REGLA DE ORO: Todo el contenido generado DEBE estar basado estrictamente en la información técnica del PDF adjunto. No inventes datos fuera del documento.
   
   INSTRUCCIÓN CRÍTICA: DEBES devolver toda la respuesta en ESPAÑOL. No uses inglés.
   
-  INSTRUCCIÓN SOBRE IMÁGENES Y DIAGRAMAS: Si el documento contiene imágenes, diagramas o esquemas técnicos (como motores, generadores, circuitos), ANALÍZALOS DETALLADAMENTE. 
-  - Identifica las partes principales de la imagen.
-  - Genera "hotspots" (puntos interactivos) con coordenadas aproximadas (x, y de 0 a 100) y una breve descripción de cada parte.
-  - Crea preguntas específicas sobre estas partes.
+  INSTRUCCIÓN SOBRE IMÁGENES Y DIAGRAMAS: Analiza las imágenes del documento y genera "hotspots" interactivos (x, y de 0 a 100 y etiqueta).
+  Solo sugiere "imageHint" si no hay imágenes reales y la analogía lo requiere.
   
-  IMPORTANTE: Solo sugiere imágenes (imageHint) si son estrictamente necesarias para explicar un concepto y no hay una imagen real en el documento que sirva. Prioriza siempre el contenido visual real del archivo.
-  
-  INSTRUCCIÓN SOBRE ANALOGÍAS DINÁMICAS (Úsalas para explicar los conceptos técnicos DEL PDF):
-  - **Electricidad (Agua)**: Voltaje=Presión, Amperaje=Caudal, Watts=Trabajo total. Si usas esta analogía, incluye "imageHint": "analogía agua presión manguera".
-  - **Potencia (Cerveza)**: kW=Líquido (potencia real), kVAR=Espuma (potencia reactiva), kVA=Vaso completo (potencia aparente). ¡Explica que la espuma es necesaria pero no sacia la sed! Si usas esta analogía, incluye "imageHint": "analogía cerveza potencia eléctrica".
-  - **Fuerza (Caballo)**: 1 HP = 746W. Compara máquinas con caballos de tiro como James Watt. Si usas esta analogía, incluye "imageHint": "analogía caballo fuerza james watt".
-  
-  Proporciona ejemplos prácticos paso a paso de cómo hacer los cálculos basados en los datos del documento. Luego, incluye preguntas en el quiz que evalúen estos cálculos específicos.
+  INSTRUCCIÓN SOBRE MICRO-DESAFÍOS: Diseña preguntas de opción múltiple que actúen como micro-desafíos (easy, medium, hard). Haz preguntas capciosas o de deducción rápida. SIEMPRE incluye una explicación ("explanation") que sea UNA SOLA ORACIÓN FIRME DIRECTA para dar feedback instantáneo al estilo Evaluador Senior y corrige el concepto inmediatamente.
+  ADEMÁS: Cada sección DEBE INCLUIR AL MENOS UNA O DOS PREGUNTAS DE VERDADERO/FALSO al final de la lista de preguntas. Sus opciones deben ser estrictamente ["Verdadero", "Falso"]. La "explanation" debe corregir el concepto si es falso o reforzar detalladamente si es verdadero.
 
-  Devuelve un objeto JSON con la siguiente estructura:
+  INSTRUCCIÓN SOBRE DURACIÓN: Cada módulo/sección debe ser extenso y profundo. El contenido debe tomar entre 20 y 25 minutos de estudio. Al finalizar la lectura de la sección, añade una sugerencia de "Tomar 5 minutos de descanso" en el texto si es una sección densa.
+
+  ANALOGÍAS DINÁMICAS (Usa solo si aplica):
+  - Voltaje=Presión, Amperaje=Caudal (Agua)
+  - kW=Líquido, kVAR=Espuma (Cerveza)
+  - 1 HP = Caballo de fuerza
+  
+  Devuelve un objeto JSON con la siguiente estructura exacta:
   {
     "title": "Título del Curso",
     "summary": "Resumen breve",
     "sections": [
       {
         "title": "Título de la Sección",
-        "content": "Contenido educativo (aprox 200-300 palabras). Incluye análisis de imágenes si las hay, analogías y ejemplos de cálculos si aplica.",
-        "imageHint": "Descripción de una imagen que ayudaría a explicar este concepto",
-        "hotspots": [
-          { "x": 50, "y": 50, "label": "Nombre de la parte", "description": "Explicación breve" }
-        ],
+        "content": "Contenido educativo, análisis visual.",
+        "imageHint": "Descripción opcional de imagen (solo si no hay imagen en el documento)",
+        "hotspots": [{ "x": 50, "y": 50, "label": "Parte", "description": "Detalle de los elementos de texto e imagen" }],
         "questions": [
           {
             "id": "q1",
-            "question": "...",
-            "options": ["a", "b", "c", "d"],
+            "question": "¿Pregunta técnica?",
+            "options": ["A", "B", "C", "D"],
             "correctAnswer": 0,
-            "explanation": "..."
+            "explanation": "Una sola oración firme y al grano corrigiendo el concepto. E.g. 'Un error en la fase te costará un equipo fundido, el voltaje es fundamental.'",
+            "difficulty": "easy"
+          },
+          {
+            "id": "q2",
+            "question": "El voltaje se mide en amperios.",
+            "options": ["Verdadero", "Falso"],
+            "correctAnswer": 1,
+            "explanation": "Falso. El voltaje se mide en voltios, el amperaje mide la corriente.",
+            "difficulty": "easy"
           }
         ]
       }
     ],
-    "debateTopics": ["Tema 1", "Tema 2"],
-    "roleplayScenarios": [
-      {
-        "title": "Título del Escenario",
-        "description": "Contexto del escenario",
-        "role": "Rol del usuario (ej., Ingeniero de Ventas)"
-      }
-    ],
-    "flashcards": [{"front": "...", "back": "..."}] // Genera al menos 20 flashcards detalladas basadas en todo el material
+    "debateTopics": ["Tema 1"],
+    "roleplayScenarios": [{"title": "Escenario", "description": "Contexto", "role": "Técnico"}]
   }`;
 
   try {
+    const MAX_FILE_SIZE = 15 * 1024 * 1024; // 15MB inline limit
+    if (file.size > MAX_FILE_SIZE) {
+      throw new Error('FILE_TOO_LARGE');
+    }
+
     const base64Data = await new Promise<string>((resolve, reject) => {
       const reader = new FileReader();
       reader.onloadend = () => {
@@ -70,12 +74,6 @@ export const processDocument = async (file: File) => {
 
     const SUPPORTED_MIME_TYPES = [
       'application/pdf',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation',
-      'application/msword',
-      'application/vnd.ms-excel',
-      'application/vnd.ms-powerpoint',
       'text/plain', 'text/csv', 'text/html', 'text/rtf',
       'image/png', 'image/jpeg', 'image/webp', 'image/heic', 'image/heif',
       'video/mp4', 'video/mpeg', 'video/mov', 'video/avi', 'video/x-flv', 'video/mpg', 'video/webm', 'video/wmv', 'video/3gpp',
@@ -83,38 +81,44 @@ export const processDocument = async (file: File) => {
     ];
 
     const mimeType = file.type || 'application/pdf';
-    const isSupported = SUPPORTED_MIME_TYPES.includes(mimeType) || mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/');
+    const isSupported = !!mimeType && (SUPPORTED_MIME_TYPES.includes(mimeType) || mimeType.startsWith('image/') || mimeType.startsWith('video/') || mimeType.startsWith('audio/'));
 
     if (!isSupported) {
-      console.warn(`MIME type ${mimeType} not directly supported by Gemini inlineData. Using fallback.`);
+      console.warn(`MIME type ${mimeType} not directly supported by Gemini inlineData. Using fallback simulation for file: ${file.name}`);
       throw new Error(`Unsupported MIME type: ${mimeType}`);
     }
 
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
+      model: "gemini-3.1-pro-preview",
       contents: [
         { role: "user", parts: [{ text: prompt }, { inlineData: { data: base64Data, mimeType } }] }
       ],
       config: {
         responseMimeType: "application/json",
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH }
       },
     });
 
-    return JSON.parse(response.text || '{}');
-  } catch (error) {
+    const cleanResult = (response.text || '{}').replace(/```json/gi, '').replace(/```/g, '').trim();
+    return JSON.parse(cleanResult);
+  } catch (error: any) {
     console.error("Error processing document with Gemini:", error);
+    const isTooLarge = error.message === 'FILE_TOO_LARGE';
+    
     // Fallback if file is too large or unsupported format
     try {
       const fallbackResponse = await ai.models.generateContent({
-        model: "gemini-1.5-flash",
+        model: "gemini-3.1-flash-lite-preview",
         contents: [
-          { role: "user", parts: [{ text: prompt + `\n\nContenido simulado del archivo "${file.name}": Este es un documento técnico sobre mantenimiento de generadores y conceptos de energía (Watts, Amperaje, Voltaje). Incluye diagramas de motores diesel.` }] }
+          { role: "user", parts: [{ text: prompt + `\n\nContexto del archivo "${file.name}": ${isTooLarge ? 'El archivo original excede el tamaño máximo (15MB) para un escaneo profundo en la memoria.' : 'Formato técnico o ilegible.'} Por lo tanto, debes generar un curso MUY profesional, genérico pero útil, asumiendo conceptos base de Maquinaria y Energía que un técnico revisaría al abrir el documento llamado: ${file.name}. Extrae el contexto del título.` }] }
         ],
         config: {
-          responseMimeType: "application/json",
+          responseMimeType: "application/json"
         },
       });
-      return JSON.parse(fallbackResponse.text || '{}');
+      
+      const cleanFallbackResult = (fallbackResponse.text || '{}').replace(/```json/gi, '').replace(/```/g, '').trim();
+      return JSON.parse(cleanFallbackResult);
     } catch (fallbackError) {
       console.error("Fallback also failed:", fallbackError);
       throw error;
@@ -122,20 +126,48 @@ export const processDocument = async (file: File) => {
   }
 };
 
-export const chatWithTutor = async (message: string, context?: string) => {
-  const systemInstruction = `Eres un tutor experto en energía de IMM. Responde siempre en Español. 
-  Enfócate en: Generadores, Consumo de energía, Sistemas de monitoreo.
-  Sé útil, técnico pero accesible. Usa emojis para hacer el aprendizaje más dinámico y creativo.
-  Si explicas conceptos complejos, usa la ANALOGÍA DEL SISTEMA DE AGUA (Voltaje=Presión, Amperaje=Caudal, Watts=Trabajo).
-  Contexto: ${context || 'Entrenamiento general de energía'}`;
+export const chatWithTutor = async (
+  message: string, 
+  context?: string,
+  attachment?: { data: string; mimeType: string }
+) => {
+  const systemInstruction = `Eres un Tutor e Investigador (CPU-IMM). Responde siempre en Español. 
+  PERSONALIDAD: Eres un "Evaluador Senior Firme". Eres estricto y directo. Si el usuario comete errores básicos, adopta un tono firme, recordándole inmediatamente las graves implicaciones en seguridad industrial y eficiencia que ese error tendría en el campo real. No seas condescendiente ni excesivamente amable; provee explicaciones claras pero con rigor técnico incuestionable.
+  Enfócate en: Generadores, Consumo de energía, Sistemas de monitoreo, Maquinaria, Normativas.
+  Usa la ANALOGÍA DEL SISTEMA DE AGUA (Voltaje=Presión, Amperaje=Caudal, Watts=Trabajo) si es útil para que entiendan la gravedad de un fallo.
+  Contexto actual: ${context || 'Evaluación técnica de campo'}`;
 
   try {
+    let contents: any = message;
+    // For attachments and complex queries (images), we route to pro with HIGH thinking
+    let selectedModel = "gemini-3.1-flash-lite-preview";
+    let config: any = { systemInstruction };
+    
+    if (attachment) {
+      selectedModel = "gemini-3.1-pro-preview";
+      config = { 
+        systemInstruction, 
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH } 
+      };
+      
+      contents = [
+        {
+          role: "user",
+          parts: [
+            { text: message || "Analiza el archivo adjunto." },
+            { inlineData: { data: attachment.data, mimeType: attachment.mimeType } }
+          ]
+        }
+      ];
+    } else {
+      // Basic text queries: low latency
+      selectedModel = "gemini-3.1-flash-lite-preview";
+    }
+
     const response = await ai.models.generateContent({
-      model: "gemini-1.5-flash",
-      contents: message,
-      config: {
-        systemInstruction,
-      },
+      model: selectedModel,
+      contents,
+      config,
     });
 
     return response.text;

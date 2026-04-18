@@ -27,6 +27,7 @@ export interface Question {
   options: string[];
   correctAnswer: number;
   explanation: string;
+  difficulty?: 'easy' | 'medium' | 'hard';
   image?: string;
   imageHint?: string;
 }
@@ -41,23 +42,16 @@ export interface Course {
   progress: number;
 }
 
-export interface Flashcard {
-  id: string;
-  front: string;
-  back: string;
-  interval: number;
-  easeFactor: number;
-  nextReview: number; // timestamp
-}
-
 export interface UserStats {
   xp: number;
   streak: number;
+  tempStreak?: number; // Added for life recovery
   lives: number;
   accuracy: number;
   lessonsCompleted: number;
   studyHours: number;
-  flashcardsDue: number;
+  level: number;
+  rank: string;
 }
 
 export interface Hotspot {
@@ -83,7 +77,6 @@ export interface StudyMaterial {
     description: string;
     role: string;
   }[];
-  flashcards: { front: string; back: string }[];
 }
 
 export interface StudentProgress {
@@ -92,7 +85,24 @@ export interface StudentProgress {
   email: string;
   xp: number;
   level: number;
+  rank?: string;
   completedCourses: number;
+}
+
+export interface Bookmark {
+  id: string;
+  documentId: string;
+  documentName: string;
+  sectionIndex: number;
+  sectionTitle: string;
+}
+
+export interface Annotation {
+  id: string;
+  documentId: string;
+  sectionIndex: number;
+  text: string;
+  date: string;
 }
 
 export interface LibraryItem {

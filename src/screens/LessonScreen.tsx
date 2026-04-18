@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, Check, Volume2, ArrowRight, Trophy, Info, Bot, Sparkles, Flag, RotateCcw, Zap, Eye, BookOpen, Settings } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { chatWithTutor } from '../services/geminiService';
-import MiniFlashcards from '../components/MiniFlashcards';
 
 export default function LessonScreen() {
   const { courseId, lessonId } = useParams();
@@ -24,11 +23,47 @@ export default function LessonScreen() {
   const [isFinished, setIsFinished] = React.useState(false);
   
   const [score, setScore] = React.useState({ correct: 0, total: 0 });
+
+  // Load progress on mount
+  React.useEffect(() => {
+    if (!lessonId) return;
+    const key = `lesson-progress-${lessonId}`;
+    const savedProgress = localStorage.getItem(key);
+    if (savedProgress) {
+      try {
+        const parsed = JSON.parse(savedProgress);
+        setCurrentStepIndex(parsed.currentStepIndex || 0);
+        setSelectedOption(parsed.selectedOption !== undefined ? parsed.selectedOption : null);
+        setIsAnswered(parsed.isAnswered || false);
+        setIsCorrect(parsed.isCorrect || false);
+        setScore(parsed.score || { correct: 0, total: 0 });
+      } catch (e) {
+        console.error("Failed to parse saved lesson progress", e);
+      }
+    }
+  }, [lessonId]);
+
+  // Save progress on state change
+  React.useEffect(() => {
+    if (!lessonId) return;
+    const key = `lesson-progress-${lessonId}`;
+    if (isFinished) {
+      localStorage.removeItem(key);
+    } else {
+      localStorage.setItem(key, JSON.stringify({
+        currentStepIndex,
+        selectedOption,
+        isAnswered,
+        isCorrect,
+        score
+      }));
+    }
+  }, [currentStepIndex, selectedOption, isAnswered, isCorrect, score, isFinished, lessonId]);
+
   
   const [showExplanation, setShowExplanation] = React.useState(false);
   const [explanationText, setExplanationText] = React.useState('');
   const [isExplaining, setIsExplaining] = React.useState(false);
-  const [showMiniFlashcards, setShowMiniFlashcards] = React.useState(false);
   
   const utteranceRef = React.useRef<SpeechSynthesisUtterance | null>(null);
 
@@ -286,47 +321,61 @@ export default function LessonScreen() {
       </AnimatePresence>
 
       {/* Header */}
-      <header className="px-6 py-4 flex items-center gap-4">
-        <button onClick={() => navigate('/courses')} className="text-slate-400 hover:text-white transition-colors">
-          <X size={24} />
-        </button>
-        <div className="flex-1 flex gap-1">
-          {lesson.steps.map((_, idx) => (
-            <div key={idx} className="h-2 flex-1 bg-slate-700 rounded-full overflow-hidden">
-              {idx <= currentStepIndex && (
-                <motion.div 
-                  initial={{ width: idx === currentStepIndex ? 0 : '100%' }}
-                  animate={{ width: '100%' }}
-                  className={cn("h-full rounded-full", idx < currentStepIndex ? "bg-green-500" : "bg-purple-500")}
-                />
-              )}
-            </div>
-          ))}
-        </div>
-        <div className="flex items-center gap-2">
-          {user?.role === 'admin' && (
+      <header className="px-6 py-4 flex flex-col gap-2">
+        <div className="flex items-center gap-4">
+          <button onClick={() => navigate('/courses')} className="text-slate-400 hover:text-white transition-colors">
+            <X size={24} />
+          </button>
+          <div className="flex-1 flex gap-1">
+            {lesson.steps.map((_, idx) => (
+              <div key={idx} className="h-2 flex-1 bg-slate-700 rounded-full overflow-hidden">
+                {idx <= currentStepIndex && (
+                  <motion.div 
+                    initial={{ width: idx === currentStepIndex ? 0 : '100%' }}
+                    animate={{ width: '100%' }}
+                    className={cn("h-full rounded-full", idx < currentStepIndex ? "bg-green-500" : "bg-purple-500")}
+                  />
+                )}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2">
+            {user?.role === 'admin' && (
+              <button 
+                onClick={toggleSupervisionMode}
+                className={cn(
+                  "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+                  isSupervisionMode ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" : "text-slate-400 hover:text-white"
+                )}
+                title={isSupervisionMode ? "Cambiar a Modo Estudio" : "Cambiar a Modo Supervisar"}
+              >
+                {isSupervisionMode ? <Eye size={18} /> : <BookOpen size={18} />}
+              </button>
+            )}
             <button 
-              onClick={toggleSupervisionMode}
-              className={cn(
-                "w-10 h-10 rounded-full flex items-center justify-center transition-all",
-                isSupervisionMode ? "bg-amber-500 text-white shadow-lg shadow-amber-500/20" : "text-slate-400 hover:text-white"
-              )}
-              title={isSupervisionMode ? "Cambiar a Modo Estudio" : "Cambiar a Modo Supervisar"}
+              className="text-purple-400 hover:text-white transition-colors"
+              title="Repaso rápido"
             >
-              {isSupervisionMode ? <Eye size={18} /> : <BookOpen size={18} />}
+              <Zap size={20} fill="currentColor" />
             </button>
-          )}
-          <button 
-            onClick={() => setShowMiniFlashcards(true)}
-            className="text-purple-400 hover:text-white transition-colors"
-            title="Repaso rápido"
-          >
-            <Zap size={20} fill="currentColor" />
+          </div>
+          <button className="text-slate-400 hover:text-white transition-colors">
+            <Flag size={20} />
           </button>
         </div>
-        <button className="text-slate-400 hover:text-white transition-colors">
-          <Flag size={20} />
-        </button>
+        
+        {/* Overall Course Progress */}
+        <div className="flex items-center justify-between text-[10px] uppercase font-black tracking-widest text-slate-500 mt-2 px-2">
+          <span>Progreso del Curso: {course.title}</span>
+          <span>{Math.round(course.progress)}% Completado</span>
+        </div>
+        <div className="h-1 w-full bg-slate-800 rounded-full overflow-hidden mt-1 relative">
+          <motion.div 
+            initial={{ width: `${course.progress}%` }}
+            animate={{ width: `${course.progress}%` }}
+            className="absolute top-0 bottom-0 left-0 bg-gradient-to-r from-purple-600 to-cyan-500"
+          />
+        </div>
       </header>
 
       <main className="flex-1 px-6 py-8 overflow-y-auto">
@@ -488,20 +537,27 @@ export default function LessonScreen() {
                     isCorrect ? "bg-[#1a2f1e] border-green-800" : "bg-[#2f1a1a] border-red-800"
                   )}
                 >
-                  <p className={cn("text-sm font-bold mb-1", isCorrect ? "text-green-400" : "text-red-400")}>
-                    {isCorrect ? '¡Lección resuelta. Buen trabajo!' : 'Respuesta incorrecta.'}
+                  <p className={cn("text-sm font-bold mb-1 flex items-center gap-1", isCorrect ? "text-green-400" : "text-red-400")}>
+                    {isCorrect ? '✓ Buen análisis.' : '❌ ¡Error operativo!'}
                   </p>
                   
                   {showExplanation ? (
                     <div className="mt-2 text-xs text-slate-300">
                       {isExplaining ? (
-                        <span className="animate-pulse">El tutor está escribiendo...</span>
+                        <span className="animate-pulse">CPU-IMM está evaluando...</span>
                       ) : (
                         <p>{explanationText}</p>
                       )}
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-300">{currentStep.question?.explanation}</p>
+                    <div className="mt-2 text-xs text-slate-300 relative">
+                      <div className={cn("inline-flex items-center gap-1 px-1.5 py-0.5 rounded font-bold uppercase tracking-wider mb-1 text-[8px]", isCorrect ? "bg-green-500/20 text-green-400" : "bg-red-500/20 text-red-400")}>
+                        <Bot size={10} /> CPU-IMM
+                      </div>
+                      <p className="font-medium leading-relaxed">
+                        {currentStep.question?.explanation}
+                      </p>
+                    </div>
                   )}
                   
                   {isCorrect && !showExplanation && (
@@ -532,14 +588,6 @@ export default function LessonScreen() {
         </div>
       </footer>
 
-      <AnimatePresence>
-        {showMiniFlashcards && (
-          <MiniFlashcards 
-            onClose={() => setShowMiniFlashcards(false)} 
-            filterId={lessonId}
-          />
-        )}
-      </AnimatePresence>
       </div>
     </div>
   );

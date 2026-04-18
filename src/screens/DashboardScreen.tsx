@@ -6,9 +6,9 @@ import { Link } from 'react-router-dom';
 
 export default function DashboardScreen() {
   const { user, stats, courses, students } = useAppStore();
-  const nextLevelXP = 2000;
-  const progress = (stats.xp / nextLevelXP) * 100;
-  const currentLevel = Math.floor(stats.xp / nextLevelXP) + 1;
+  const nextLevelXP = stats.level * 1000;
+  const currentLevelXP = stats.xp % 1000;
+  const progress = (currentLevelXP / 1000) * 100;
 
   return (
     <div className="p-6 md:p-8 space-y-6 md:space-y-8">
@@ -17,7 +17,7 @@ export default function DashboardScreen() {
         <div>
           <h1 className="text-2xl md:text-4xl font-black text-white uppercase tracking-tight">Hola, {user?.name}</h1>
           <p className="text-sm md:text-base font-bold text-slate-400 uppercase tracking-widest">
-            {user?.role === 'admin' ? 'Administrador' : 'Estudiante'}
+            {user?.role === 'admin' ? 'Administrador' : `Rango: ${stats.rank}`}
           </p>
         </div>
         
@@ -38,7 +38,7 @@ export default function DashboardScreen() {
         <div className="flex justify-between items-end mb-4">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-slate-400">Nivel actual</p>
-            <h2 className="text-3xl font-black text-white uppercase leading-none">Nivel {currentLevel}</h2>
+            <h2 className="text-3xl font-black text-white uppercase leading-none">Nivel {stats.level}</h2>
           </div>
           <div className="text-right">
             <p className="text-xs font-bold text-purple-400">{stats.xp} / {nextLevelXP} XP</p>
@@ -93,7 +93,7 @@ export default function DashboardScreen() {
                 <span className="text-[10px] font-bold bg-purple-500/20 text-purple-400 px-2 py-0.5 rounded uppercase">Ruta de Aprendizaje</span>
                 <h4 className="text-xl font-bold text-white leading-tight">Continúa tu progreso</h4>
               </div>
-              <Link to="/path" className="text-purple-400 hover:text-purple-300 transition-colors">
+              <Link to="/courses" className="text-purple-400 hover:text-purple-300 transition-colors">
                 <Play size={32} fill="currentColor" />
               </Link>
             </div>
@@ -123,7 +123,7 @@ export default function DashboardScreen() {
               </div>
               <h5 className="text-xl md:text-2xl font-bold mb-6">¿Sabes cómo funciona un transformador trifásico?</h5>
               <Link 
-                to="/lesson/c1/l1-1"
+                to="/courses"
                 className="inline-block bg-cyan-400 text-[#1e1e2f] px-6 py-3 rounded-xl font-bold text-sm uppercase tracking-wide hover:opacity-90 active:scale-95 transition-all"
               >
                 Comenzar Quiz
@@ -146,6 +146,36 @@ export default function DashboardScreen() {
         </div>
         <ChevronRight className="text-slate-600" />
       </div>
+
+      {/* Desafíos Semanales */}
+      <section className="pt-2">
+        <div className="flex items-center gap-2 mb-4 ml-1">
+          <Flame className="text-amber-500" size={20} />
+          <h3 className="text-sm font-black uppercase tracking-wider text-slate-300">Desafíos Semanales</h3>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {[
+            { id: 1, title: "Maestro del Generador", desc: "Acierta 5 preguntas técnicas", xp: 150, progress: 60, color: "from-amber-600 to-amber-400" },
+            { id: 2, title: "Ojo Clínico", desc: "Encuentra 3 fallas en esquemas", xp: 200, progress: 30, color: "from-cyan-600 to-cyan-400" },
+            { id: 3, title: "Velocista Eléctrico", desc: "Termina el quiz en < 2min", xp: 300, progress: 0, color: "from-purple-600 to-purple-400" }
+          ].map(challenge => (
+            <div key={challenge.id} className="bg-[#252538] p-5 rounded-2xl border border-slate-800 shadow-sm relative overflow-hidden group hover:border-slate-600 transition-all">
+              <div className="absolute top-0 right-0 w-24 h-24 bg-white/5 rounded-full -mr-12 -mt-12 group-hover:scale-110 transition-transform"></div>
+              <h4 className="font-black text-white text-lg mb-1">{challenge.title}</h4>
+              <p className="text-xs text-slate-400 mb-4">{challenge.desc}</p>
+              
+              <div className="flex justify-between items-center mb-2">
+                <span className="text-xs font-bold text-slate-500">{challenge.progress}%</span>
+                <span className="text-[10px] font-black uppercase tracking-widest text-[#d99000]">+{challenge.xp} XP</span>
+              </div>
+              <div className="w-full h-1.5 bg-slate-800 rounded-full overflow-hidden">
+                <div className={`h-full bg-gradient-to-r ${challenge.color}`} style={{ width: `${challenge.progress}%` }}></div>
+              </div>
+            </div>
+          ))}
+        </div>
+      </section>
+
       {/* Admin Panel */}
       {user?.role === 'admin' && (
         <section className="pt-4 border-t border-slate-800">
